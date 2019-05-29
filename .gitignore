@@ -62,3 +62,5 @@ docs/_build/
 .qbcache/
 
 .idea/
+
+\.vscode/
