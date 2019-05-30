@@ -20,26 +20,21 @@ SQLAlchemy implementation of the storage model API ("MAPI").
 import os
 import platform
 
-from sqlalchemy import (
-    create_engine,
-    orm,
-)
+from sqlalchemy import create_engine, orm
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm.exc import StaleDataError
 
 from aria.utils.collections import OrderedDict
-from . import (
-    api,
-    exceptions,
-    collection_instrumentation
-)
+from . import api, exceptions, collection_instrumentation
 
-_predicates = {'ge': '__ge__',
-               'gt': '__gt__',
-               'lt': '__lt__',
-               'le': '__le__',
-               'eq': '__eq__',
-               'ne': '__ne__'}
+_predicates = {
+    "ge": "__ge__",
+    "gt": "__gt__",
+    "lt": "__lt__",
+    "le": "__le__",
+    "eq": "__eq__",
+    "ne": "__ne__",
+}
 
 
 class SQLAlchemyModelAPI(api.ModelAPI):
@@ -47,10 +42,7 @@ class SQLAlchemyModelAPI(api.ModelAPI):
     SQLAlchemy implementation of the storage model API ("MAPI").
     """
 
-    def __init__(self,
-                 engine,
-                 session,
-                 **kwargs):
+    def __init__(self, engine, session, **kwargs):
         super(SQLAlchemyModelAPI, self).__init__(**kwargs)
         self._engine = engine
         self._session = session
@@ -59,52 +51,46 @@ class SQLAlchemyModelAPI(api.ModelAPI):
         """
         Returns a single result based on the model class and element ID
         """
-        query = self._get_query(include, {'id': entry_id})
+        query = self._get_query(include, {"id": entry_id})
         result = query.first()
 
         if not result:
             raise exceptions.NotFoundError(
-                'Requested `{0}` with ID `{1}` was not found'
-                .format(self.model_cls.__name__, entry_id)
+                "Requested `{0}` with ID `{1}` was not found".format(
+                    self.model_cls.__name__, entry_id
+                )
             )
         return self._instrument(result)
 
     def get_by_name(self, entry_name, include=None, **kwargs):
-        assert hasattr(self.model_cls, 'name')
-        result = self.list(include=include, filters={'name': entry_name})
+        assert hasattr(self.model_cls, "name")
+        result = self.list(include=include, filters={"name": entry_name})
         if not result:
             raise exceptions.NotFoundError(
-                'Requested {0} with name `{1}` was not found'
-                .format(self.model_cls.__name__, entry_name)
+                "Requested {0} with name `{1}` was not found".format(
+                    self.model_cls.__name__, entry_name
+                )
             )
         elif len(result) > 1:
             raise exceptions.StorageError(
-                'Requested {0} with name `{1}` returned more than 1 value'
-                .format(self.model_cls.__name__, entry_name)
+                "Requested {0} with name `{1}` returned more than 1 value".format(
+                    self.model_cls.__name__, entry_name
+                )
             )
         else:
             return result[0]
 
-    def list(self,
-             include=None,
-             filters=None,
-             pagination=None,
-             sort=None,
-             **kwargs):
+    def list(self, include=None, filters=None, pagination=None, sort=None, **kwargs):
         query = self._get_query(include, filters, sort)
 
         results, total, size, offset = self._paginate(query, pagination)
 
         return ListResult(
             dict(total=total, size=size, offset=offset),
-            [self._instrument(result) for result in results]
+            [self._instrument(result) for result in results],
         )
 
-    def iter(self,
-             include=None,
-             filters=None,
-             sort=None,
-             **kwargs):
+    def iter(self, include=None, filters=None, sort=None, **kwargs):
         """
         Returns a (possibly empty) list of ``model_class`` results.
         """
@@ -181,10 +167,10 @@ class SQLAlchemyModelAPI(api.ModelAPI):
             self._session.commit()
         except StaleDataError as e:
             self._session.rollback()
-            raise exceptions.StorageError('Version conflict: {0}'.format(str(e)))
+            raise exceptions.StorageError("Version conflict: {0}".format(str(e)))
         except (SQLAlchemyError, ValueError) as e:
             self._session.rollback()
-            raise exceptions.StorageError('SQL Storage error: {0}'.format(str(e)))
+            raise exceptions.StorageError("SQL Storage error: {0}".format(str(e)))
 
     def _get_base_query(self, include, joins):
         """
@@ -241,7 +227,7 @@ class SQLAlchemyModelAPI(api.ModelAPI):
         """
         if sort:
             for column, order in sort.items():
-                if order == 'desc':
+                if order == "desc":
                     column = column.desc()
                 query = query.order_by(column)
         return query
@@ -270,10 +256,7 @@ class SQLAlchemyModelAPI(api.ModelAPI):
 
         return query
 
-    def _get_query(self,
-                   include=None,
-                   filters=None,
-                   sort=None):
+    def _get_query(self, include=None, filters=None, sort=None):
         """
         Gets a SQL query object based on the params passed.
 
@@ -302,18 +285,16 @@ class SQLAlchemyModelAPI(api.ModelAPI):
                 for predicate, operand in conditions.items():
                     if predicate not in _predicates:
                         raise exceptions.StorageError(
-                            "{0} is not a valid predicate for filtering. Valid predicates are {1}"
-                            .format(predicate, ', '.join(_predicates.keys())))
+                            "{0} is not a valid predicate for filtering. Valid predicates are {1}".format(
+                                predicate, ", ".join(_predicates.keys())
+                            )
+                        )
                     del filters[column][predicate]
                     filters[column][_predicates[predicate]] = operand
 
-
         return filters
 
-    def _get_joins_and_converted_columns(self,
-                                         include,
-                                         filters,
-                                         sort):
+    def _get_joins_and_converted_columns(self, include, filters, sort):
         """
         Gets a list of tables on which we need to join and the converted ``include``, ``filters``
         and ```sort`` arguments (converted to actual SQLAlchemy column/label objects instead of
@@ -331,10 +312,7 @@ class SQLAlchemyModelAPI(api.ModelAPI):
         )
         return include, filters, sort, joins
 
-    def _get_columns_from_field_names(self,
-                                      include,
-                                      filters,
-                                      sort):
+    def _get_columns_from_field_names(self, include, filters, sort):
         """
         Gooes over the optional parameters (include, filters, sort), and replace column names with
         actual SQLAlechmy column objects.
@@ -376,8 +354,8 @@ class SQLAlchemyModelAPI(api.ModelAPI):
          * ``offset`` [default: 0]
         """
         if pagination:
-            size = pagination.get('size', 0)
-            offset = pagination.get('offset', 0)
+            size = pagination.get("size", 0)
+            offset = pagination.get("offset", 0)
             total = query.order_by(None).count()  # Fastest way to count
             results = query.limit(size).offset(offset).all()
             return results, total, size, offset
@@ -396,12 +374,14 @@ class SQLAlchemyModelAPI(api.ModelAPI):
 
     def _instrument(self, model):
         if self._instrumentation:
-            return collection_instrumentation.instrument(self._instrumentation, model, self)
+            return collection_instrumentation.instrument(
+                self._instrumentation, model, self
+            )
         else:
             return model
 
 
-def init_storage(base_dir, filename='db.sqlite'):
+def init_storage(base_dir, filename="db.sqlite"):
     """
     Built-in ModelStorage initiator.
 
@@ -414,14 +394,35 @@ def init_storage(base_dir, filename='db.sqlite'):
     :param filename: database file name.
     :return:
     """
-    uri = 'sqlite:///{platform_char}{path}'.format(
+    uri = "sqlite:///{platform_char}{path}".format(
         # Handles the windows behavior where there is not root, but drivers.
         # Thus behaving as relative path.
-        platform_char='' if 'Windows' in platform.system() else '/',
-
-        path=os.path.join(base_dir, filename))
+        platform_char="" if "Windows" in platform.system() else "/",
+        path=os.path.join(base_dir, filename),
+    )
 
     engine = create_engine(uri, connect_args=dict(timeout=15))
+
+    session_factory = orm.sessionmaker(bind=engine)
+    session = orm.scoped_session(session_factory=session_factory)
+
+    return dict(engine=engine, session=session)
+
+
+def init_postgres_storage(uri=None):
+    """
+    Built-in ModelStorage initiator.
+
+    Creates a SQLAlchemy engine and a session to be passed to the MAPI.
+    """
+    if not uri:
+        uri = "postgresql+psycopg2://{user}:{password}@/{dbname}".format(
+            user=os.environ["PG_USER"],
+            password=os.environ["PG_PASSWORD"],
+            dbname=os.environ["PG_DBNAME"],
+        )
+
+    engine = create_engine(uri)
 
     session_factory = orm.sessionmaker(bind=engine)
     session = orm.scoped_session(session_factory=session_factory)
@@ -433,6 +434,7 @@ class ListResult(list):
     """
     Contains results about the requested items.
     """
+
     def __init__(self, metadata, *args, **qwargs):
         super(ListResult, self).__init__(*args, **qwargs)
         self.metadata = metadata
