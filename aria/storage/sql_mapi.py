@@ -409,19 +409,12 @@ def init_storage(base_dir, filename="db.sqlite"):
     return dict(engine=engine, session=session)
 
 
-def init_postgres_storage(uri=None):
+def init_postgres_storage(uri):
     """
     Built-in ModelStorage initiator.
 
     Creates a SQLAlchemy engine and a session to be passed to the MAPI.
     """
-    if not uri:
-        uri = "postgresql+psycopg2://{user}:{password}@/{dbname}".format(
-            user=os.environ["PG_USER"],
-            password=os.environ["PG_PASSWORD"],
-            dbname=os.environ["PG_DBNAME"],
-        )
-
     engine = create_engine(uri)
 
     session_factory = orm.sessionmaker(bind=engine)

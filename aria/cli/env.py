@@ -22,17 +22,16 @@ import shutil
 from aria.type_definition_manager import TypeDefinitionManager
 from .config import config
 from .logger import Logging
-from .. import (application_model_storage, application_resource_storage)
+from .. import application_model_storage, application_resource_storage
 from ..orchestrator.plugin import PluginManager
 from ..storage.sql_mapi import SQLAlchemyModelAPI
 from ..storage.filesystem_rapi import FileSystemResourceAPI
 
 
-ARIA_DEFAULT_WORKDIR_NAME = '.aria'
+ARIA_DEFAULT_WORKDIR_NAME = ".aria"
 
 
 class _Environment(object):
-
     def __init__(self, workdir):
 
         self._workdir = workdir
@@ -41,10 +40,10 @@ class _Environment(object):
         self._config = config.CliConfig.create_config(workdir)
         self._logging = Logging(self._config)
 
-        self._model_storage_dir = os.path.join(workdir, 'models')
-        self._resource_storage_dir = os.path.join(workdir, 'resources')
-        self._plugins_dir = os.path.join(workdir, 'plugins')
-        self._type_definitions_dir = os.path.join(workdir, 'type_definitions')
+        self._model_storage_dir = os.path.join(workdir, "models")
+        self._resource_storage_dir = os.path.join(workdir, "resources")
+        self._plugins_dir = os.path.join(workdir, "plugins")
+        self._type_definitions_dir = os.path.join(workdir, "type_definitions")
 
         # initialized lazily
         self._model_storage = None
@@ -67,7 +66,8 @@ class _Environment(object):
     @property
     def model_storage(self):
         if not self._model_storage:
-            self._model_storage = self._init_sqlite_model_storage()
+            # self._model_storage = self._init_sqlite_model_storage()
+            self._model_storage = self._init_pgsql_model_storage()
         return self._model_storage
 
     @property
@@ -110,17 +110,28 @@ class _Environment(object):
 
         initiator_kwargs = dict(base_dir=self._model_storage_dir)
         return application_model_storage(
-            SQLAlchemyModelAPI,
-            initiator_kwargs=initiator_kwargs)
+            SQLAlchemyModelAPI, initiator_kwargs=initiator_kwargs
+        )
+
+    @staticmethod
+    def _init_pgsql_model_storage():
+        initiator_kwargs = dict(
+            uri="postgresql+psycopg2://{user}:{password}@/{dbname}".format(
+                user=os.environ["PG_USER"],
+                password=os.environ["PG_PASSWORD"],
+                dbname=os.environ["PG_DBNAME"],
+            )
+        )
+        return application_model_storage(
+            SQLAlchemyModelAPI, initiator_kwargs=initiator_kwargs
+        )
 
     def _init_fs_resource_storage(self):
         if not os.path.exists(self._resource_storage_dir):
             os.makedirs(self._resource_storage_dir)
 
         fs_kwargs = dict(directory=self._resource_storage_dir)
-        return application_resource_storage(
-            FileSystemResourceAPI,
-            api_kwargs=fs_kwargs)
+        return application_resource_storage(FileSystemResourceAPI, api_kwargs=fs_kwargs)
 
     def _init_plugin_manager(self):
         if not os.path.exists(self._plugins_dir):
@@ -134,7 +145,12 @@ class _Environment(object):
 
         return TypeDefinitionManager(self.model_storage, self._type_definitions_dir)
 
-env = _Environment(os.path.join(
-    os.environ.get('ARIA_WORKDIR', os.path.expanduser('~')), ARIA_DEFAULT_WORKDIR_NAME))
+
+env = _Environment(
+    os.path.join(
+        os.environ.get("ARIA_WORKDIR", os.path.expanduser("~")),
+        ARIA_DEFAULT_WORKDIR_NAME,
+    )
+)
 
 logger = env.logging.logger
