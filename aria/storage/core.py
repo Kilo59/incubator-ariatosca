@@ -119,7 +119,7 @@ class ModelStorage(Storage):
     """
     def __init__(self, *args, **kwargs):
         if kwargs.get('initiator', None) is None:
-            kwargs['initiator'] = sql_mapi.init_storage
+            kwargs['initiator'] = sql_mapi.init_postgres_storage
         super(ModelStorage, self).__init__(*args, **kwargs)
 
     def register(self, model_cls):
